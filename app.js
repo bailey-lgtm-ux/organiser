@@ -103,7 +103,7 @@ function loadState() {
     console.error("Failed to load state:", err);
   }
   normalizeStamps(state);
-  prunePlainTombstones(state);
+  pruneOldRecords(state);
   if (!activeSubjects().length) {
     state.subjects = state.subjects.concat(
       DEFAULT_SUBJECTS.map((s) => ({ id: uid(), updatedAt: 0, ...s }))
@@ -124,12 +124,21 @@ function normalizeStamps(s) {
 }
 
 /* Tombstones only need to live long enough to reach your other devices.
-   Anything deleted over 90 days ago is dropped for good. */
+   Anything deleted over 90 days ago is dropped for good. The same cutoff
+   clears out stale reminder keys, which otherwise accumulate forever and
+   would eventually bloat the synced document. */
 const TOMBSTONE_TTL_MS = 90 * 24 * 3600 * 1000;
-function prunePlainTombstones(s) {
+function pruneOldRecords(s) {
   const cutoff = Date.now() - TOMBSTONE_TTL_MS;
   s.items = (s.items || []).filter((i) => !(i.deleted && (i.updatedAt || 0) < cutoff));
   s.subjects = (s.subjects || []).filter((x) => !(x.deleted && (x.updatedAt || 0) < cutoff));
+
+  const oldestDate = toDateStr(new Date(cutoff));
+  for (const key of Object.keys(s.notified || {})) {
+    // Keys look like "<itemId>@YYYY-MM-DD"; drop ones long past.
+    const date = key.slice(key.lastIndexOf("@") + 1);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date < oldestDate) delete s.notified[key];
+  }
 }
 
 /**
