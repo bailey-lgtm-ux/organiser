@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VCE Organiser icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Calendar body -->
+  <rect x="116" y="140" width="280" height="256" rx="28" fill="#ffffff"/>
+  <!-- Header band -->
+  <rect x="116" y="140" width="280" height="60" rx="28" fill="#e0e7ff"/>
+  <rect x="116" y="172" width="280" height="28" fill="#e0e7ff"/>
+  <!-- Binder rings -->
+  <rect x="176" y="112" width="20" height="56" rx="10" fill="#c7d2fe"/>
+  <rect x="316" y="112" width="20" height="56" rx="10" fill="#c7d2fe"/>
+  <!-- Date dots (colour-coded, matching the app) -->
+  <circle cx="176" cy="252" r="16" fill="#ef4444"/>
+  <circle cx="256" cy="252" r="16" fill="#3b82f6"/>
+  <circle cx="336" cy="252" r="16" fill="#22c55e"/>
+  <circle cx="176" cy="316" r="16" fill="#f59e0b"/>
+  <circle cx="256" cy="316" r="16" fill="#a855f7"/>
+  <circle cx="336" cy="316" r="16" fill="#e2e8f0"/>
+  <!-- Check mark -->
+  <path d="M168 352 l24 24 l40 -48" fill="none" stroke="#4f46e5" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
