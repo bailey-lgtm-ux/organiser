@@ -11,8 +11,8 @@
  * ========================================================================= */
 
 window.FIREBASE_CONFIG = {
-  apiKey: "PASTE_API_KEY_HERE",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  appId: "PASTE_APP_ID",
+  apiKey: "AIzaSyCZyATbvq1SSjiaMSBol57FS_iPoy4cAPY",
+  authDomain: "vce-organiser.firebaseapp.com",
+  projectId: "vce-organiser",
+  appId: "1:386781455622:web:3855eea0af3aea9f2baa87",
 };
