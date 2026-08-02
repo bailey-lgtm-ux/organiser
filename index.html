@@ -201,6 +201,19 @@
     </div>
   </div>
 
+  <footer class="app-footer">
+    <p class="footer-note" id="footer-note">Saved on this device.</p>
+    <div class="footer-actions">
+      <button id="export-data" class="btn btn-ghost" type="button" title="Save a backup file of everything">
+        ⬇ Export backup
+      </button>
+      <button id="import-data" class="btn btn-ghost" type="button" title="Load a backup file into this organiser">
+        ⬆ Import backup
+      </button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden />
+    </div>
+  </footer>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="firebase-config.js"></script>

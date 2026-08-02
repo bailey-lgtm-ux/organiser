@@ -108,6 +108,22 @@ h1, h2, h3 { margin: 0; font-weight: 650; }
   .tagline { display: none; }
 }
 
+/* ---------- Footer (backup tools) ---------- */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px clamp(12px, 3vw, 28px) 28px;
+  max-width: 1300px;
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+}
+.footer-note { margin: 0; font-size: 0.78rem; color: var(--text-soft); }
+.footer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.app-footer .btn { font-size: 0.85rem; padding: 6px 12px; }
+
 /* ---------- Layout ---------- */
 .layout {
   display: grid;

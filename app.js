@@ -215,6 +215,44 @@ function mergeStates(local, remote) {
 }
 
 /**
+ * Fold subjects that share a name into one.
+ *
+ * Two devices that each invented their own "Biology" would otherwise both
+ * survive a merge and show up twice. The survivor is the one with the
+ * lowest id, which every device computes identically, so they all agree
+ * without needing to coordinate.
+ *
+ * @returns {number} how many duplicates were folded away
+ */
+function dedupeSubjectsByName(s) {
+  const winners = new Map();
+  for (const sub of s.subjects) {
+    if (sub.deleted) continue;
+    const key = String(sub.name || "").trim().toLowerCase();
+    if (!key) continue;
+    const cur = winners.get(key);
+    if (!cur || sub.id < cur.id) winners.set(key, sub);
+  }
+
+  const remap = new Map();
+  for (const sub of s.subjects) {
+    if (sub.deleted) continue;
+    const win = winners.get(String(sub.name || "").trim().toLowerCase());
+    if (win && win.id !== sub.id) remap.set(sub.id, win.id);
+  }
+  if (!remap.size) return 0;
+
+  for (const it of s.items) {
+    const target = remap.get(it.subjectId);
+    if (target) { it.subjectId = target; stamp(it); }
+  }
+  for (const sub of s.subjects) {
+    if (remap.has(sub.id)) tombstone(sub);
+  }
+  return remap.size;
+}
+
+/**
  * Called by sync.js whenever the cloud copy changes.
  * @returns {boolean} true if we still hold changes the cloud needs.
  */
@@ -227,7 +265,11 @@ function applyRemoteState(remote) {
   state.subjects = merged.subjects;
   state.notified = merged.notified;
 
-  if (merged.remoteNewer) {
+  // Two devices meeting for the first time often both hold "English" etc.
+  const folded = dedupeSubjectsByName(state);
+  if (folded) merged.localNewer = true;
+
+  if (merged.remoteNewer || folded) {
     saveState({ push: false });
     renderAll();
     // Refresh the subjects editor if it's open, but never yank the dropdown
@@ -976,6 +1018,113 @@ function initVoiceInput() {
 }
 
 /* =========================================================================
+ * Backup: export to a file, import one back in
+ *
+ * A browser keeps storage separately per web address, so the copy that lived
+ * at localhost can't be seen by the published site. These two buttons carry
+ * items across that gap, and double as a plain backup.
+ * ========================================================================= */
+function exportBackup() {
+  const payload = {
+    app: "vce-organiser",
+    formatVersion: 1,
+    exportedAt: new Date().toISOString(),
+    subjects: state.subjects,
+    items: state.items,
+    notified: state.notified,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `vce-organiser-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  const n = activeItems().length;
+  toast(`Exported ${n} item${n === 1 ? "" : "s"} — check your Downloads.`);
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => toast("Couldn't read that file.");
+  reader.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(reader.result);
+    } catch (err) {
+      toast("That file isn't a valid backup.");
+      return;
+    }
+    const result = importBackup(data);
+    if (!result) { toast("That doesn't look like a VCE Organiser backup."); return; }
+
+    saveState();                       // pushes to the cloud if signed in
+    renderAll();
+    if ($("#item-modal").hidden) populateSubjectDropdown();
+
+    const bits = [`Imported ${result.items} item${result.items === 1 ? "" : "s"}`];
+    if (result.subjects) bits.push(`${result.subjects} new subject${result.subjects === 1 ? "" : "s"}`);
+    if (result.skipped) bits.push(`${result.skipped} already here`);
+    toast(bits.join(" · "));
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Merge a backup into the current organiser. Nothing is replaced: items
+ * already present are left alone, and incoming subjects are matched to
+ * existing ones by name so importing doesn't double up your subject list.
+ *
+ * @returns {{items:number, subjects:number, skipped:number}|null}
+ */
+function importBackup(data) {
+  if (!data || typeof data !== "object" || !Array.isArray(data.items)) return null;
+  normalizeStamps(data);
+
+  const byName = new Map(
+    activeSubjects().map((s) => [String(s.name || "").trim().toLowerCase(), s.id])
+  );
+  const remap = new Map();
+  let addedSubjects = 0;
+
+  for (const sub of data.subjects || []) {
+    if (!sub || !sub.id || sub.deleted) continue;
+    const key = String(sub.name || "").trim().toLowerCase();
+    const existing = byName.get(key);
+    if (existing) { remap.set(sub.id, existing); continue; }
+    if (state.subjects.some((s) => s.id === sub.id)) { remap.set(sub.id, sub.id); continue; }
+    state.subjects.push(stamp(Object.assign({}, sub)));
+    byName.set(key, sub.id);
+    remap.set(sub.id, sub.id);
+    addedSubjects++;
+  }
+
+  const have = new Set(state.items.map((i) => i.id));
+  const fallbackSubject = activeSubjects()[0] && activeSubjects()[0].id;
+  let added = 0, skipped = 0;
+
+  for (const item of data.items) {
+    if (!item || !item.id || !item.title || !item.date || item.deleted) continue;
+    if (have.has(item.id)) { skipped++; continue; }
+    const copy = Object.assign({}, item);
+    copy.subjectId = remap.get(copy.subjectId) || fallbackSubject;
+    copy.completedDates = Array.isArray(copy.completedDates) ? copy.completedDates : [];
+    state.items.push(stamp(copy));
+    have.add(copy.id);
+    added++;
+  }
+
+  for (const key of Object.keys(data.notified || {})) state.notified[key] = true;
+  dedupeSubjectsByName(state);
+
+  return { items: added, subjects: addedSubjects, skipped };
+}
+
+/* =========================================================================
  * Cloud sync UI
  * ========================================================================= */
 const SYNC_LOOK = {
@@ -1055,6 +1204,13 @@ function bindEvents() {
   $("#manage-subjects").addEventListener("click", () => { renderSubjectManager(); openModal("subjects-modal"); });
   $("#enable-reminders").addEventListener("click", requestNotifications);
   $("#sync-btn").addEventListener("click", handleSyncClick);
+
+  $("#export-data").addEventListener("click", exportBackup);
+  $("#import-data").addEventListener("click", () => $("#import-file").click());
+  $("#import-file").addEventListener("change", (e) => {
+    handleImportFile(e.target.files && e.target.files[0]);
+    e.target.value = "";           // let the same file be picked again
+  });
 
   // Quick-add
   $("#qa-form").addEventListener("submit", (e) => { e.preventDefault(); handleQuickAdd($("#qa-input").value); });

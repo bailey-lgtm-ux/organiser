@@ -7,7 +7,7 @@
  * code long after you'd published an update.
  */
 
-const CACHE_VERSION = "vce-organiser-v5";
+const CACHE_VERSION = "vce-organiser-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
